@@ -10,7 +10,7 @@ from . import accuracy_utils as utils
 from .conftest import QUICK_MODE
 
 if QUICK_MODE:
-    '''
+    #'''
     MNK_SHAPES = [
         (1, 1, 32),
         # tl.load
@@ -127,7 +127,7 @@ if QUICK_MODE:
             (1, 2048, 128),
         ]
     )
-    #'''
+    '''
     FLOAT_DTYPES = [torch.bfloat16]
     #FLOAT_DTYPES = [torch.float32]
     #FLOAT_DTYPES = [torch.bfloat16, torch.float32]
@@ -158,8 +158,8 @@ MK_SHAPES = (
 @pytest.mark.mm1
 @pytest.mark.parametrize("M, N, K", MNK_SHAPES)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
-#@pytest.mark.parametrize("b_column_major", [True])
-@pytest.mark.parametrize("b_column_major", [False])
+@pytest.mark.parametrize("b_column_major", [True])
+#@pytest.mark.parametrize("b_column_major", [False])
 #@pytest.mark.parametrize("b_column_major", [True, False])
 def test_mm(M, N, K, dtype, b_column_major):
     if flag_gems.vendor_name == "tsingmicro" and dtype == torch.float32:
