@@ -314,6 +314,12 @@ def sqmma_descriptor_pre_hook(nargs):
 def sqmma_get_configs(pre_hook=sqmma_descriptor_pre_hook):
     return [
         triton.Config(
+            {"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 128},
+            num_stages=1,
+            num_warps=4,
+            pre_hook=pre_hook,
+        ),
+        triton.Config(
             {"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 64},
             num_stages=1,
             num_warps=4,
