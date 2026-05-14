@@ -5,11 +5,13 @@ import torch
 import triton
 import triton.language as tl
 
-from .. import runtime
-from ..runtime import torch_device_fn
-from ..utils import dim_compress, libentry
-from ..utils import triton_lang_extension as tle
-from ..utils.limits import get_dtype_min
+from flag_gems import runtime
+from flag_gems.runtime import torch_device_fn
+from flag_gems.utils import dim_compress, libentry, libtuner
+from flag_gems.utils import triton_lang_extension as ext
+from flag_gems.utils.limits import get_dtype_min
+
+logger = logging.getLogger(__name__)
 
 
 @libentry()
@@ -20,7 +22,7 @@ def amax_kernel_1(
     M,
     BLOCK_SIZE: tl.constexpr,
 ):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
 
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     inp_ptrs = inp + offset
@@ -45,7 +47,10 @@ def amax_kernel_2(mid, out, mid_size, BLOCK_MID: tl.constexpr):
 
 
 @libentry()
-@triton.autotune(configs=runtime.get_tuned_config("amax"), key=["M", "N"])
+@libtuner(
+    configs=runtime.get_tuned_config("naive_reduction"),
+    key=["M", "N"],
+)
 @triton.jit
 def amax_kernel(
     inp,
@@ -59,7 +64,7 @@ def amax_kernel(
     min_value = get_dtype_min(dtype)
 
     # Map the program id to the row of inp it should compute.
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
     rows = pid * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     inp = inp + rows * N
     out = out + rows
@@ -78,7 +83,7 @@ def amax_kernel(
 
 
 def amax(inp, dim=None, keepdim=False):
-    logging.debug("GEMS AMAX")
+    logger.debug("GEMS AMAX")
     if dim is None or len(dim) == 0:
         M = inp.numel()
         block_size = triton.next_power_of_2(math.ceil(math.sqrt(M)))

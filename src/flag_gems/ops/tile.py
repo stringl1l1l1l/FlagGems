@@ -6,7 +6,9 @@ from typing import Callable, List, Mapping
 import torch
 
 from flag_gems.utils.code_cache import code_cache_dir
-from flag_gems.utils.code_utils import IndentedBuffer
+from flag_gems.utils.code_utils import IndentedBuffer, write_atomic
+
+logger = logging.getLogger(__name__)
 
 
 # --------------------------- tile wrapper genration -----------------------------------
@@ -59,7 +61,7 @@ def generate_imports(code: IndentedBuffer) -> IndentedBuffer:
     code.writeline("from flag_gems.utils.shape_utils import volume")
     code.writeline("from flag_gems.utils.libentry import libentry")
     code.writeline("from flag_gems.utils.type_utils import type_promotion")
-    code.writeline("from flag_gems.utils import triton_lang_extension as tle")
+    code.writeline("from flag_gems.utils import triton_lang_extension as ext")
     code.newline()
     code.newline()
     return code
@@ -262,10 +264,10 @@ def generate_tile_kernel(
     with code.indent():
         # get pid
         code.writeline("# task id & masking")
-        pid_stmt = "pid = tle.program_id(0)"
+        pid_stmt = "pid = ext.program_id(0)"
         code.writeline(pid_stmt)
 
-        code.writeline("num_ctas = tle.num_programs(0)")
+        code.writeline("num_ctas = ext.num_programs(0)")
 
         # get tid (a.k.a task id)
         tid_stmt = "init_tid = pid * tile_size + tl.arange(0, tile_size)"
@@ -408,15 +410,14 @@ class TileFunction:
                 code,
             )
 
-            file_name = f"tile_rank_{key}_pid_{self.pid}.py"
-
-            with open(code_cache_dir() / file_name, "wt", encoding="utf-8") as f:
-                f.write(code.getvalue())
+            file_name = f"tile_rank_{key}.py"
+            file_path = code_cache_dir() / file_name
+            write_atomic(file_path, code.getvalue())
 
             # load
             spec = importlib.util.spec_from_file_location(
-                f"_gen_module_rank_{key}_pid_{self.pid}",
-                f.name,
+                f"_gen_module_rank_{key}",
+                file_path,
             )
 
             m = importlib.util.module_from_spec(spec)
@@ -436,7 +437,7 @@ _tile_func = TileFunction()
 
 
 def tile(inp: torch.Tensor, dims) -> torch.Tensor:
-    logging.debug("GEMS TILE")
+    logger.debug("GEMS TILE")
 
     out = _tile_func(inp, dims)
     return out

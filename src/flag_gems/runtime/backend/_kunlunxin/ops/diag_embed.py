@@ -5,6 +5,8 @@ import triton
 
 from ..utils.pointwise_dynamic import pointwise_dynamic
 
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
+
 
 @pointwise_dynamic(is_tensor=[True], promotion_methods=[(0, "DEFAULT")])
 @triton.jit
@@ -13,7 +15,7 @@ def copy_func(x):
 
 
 def diag_embed(x, offset=0, dim1=-2, dim2=-1):
-    logging.debug("GEMS DIAG_EMBED")
+    logger.debug("GEMS_KUNLUNXIN DIAG_EMBED")
 
     rank = x.ndim + 1
 
@@ -39,7 +41,7 @@ def diag_embed(x, offset=0, dim1=-2, dim2=-1):
     y_shape.insert(dim1, last_dim)
     y_shape.insert(dim2, last_dim)
 
-    y = torch.zeros(y_shape, dtype=x.dtype, device=x.device)
+    y = x.new_zeros(y_shape)
     y_diagonal_view = torch.diagonal(y, offset, dim1, dim2)
     copy_func.instantiate(x.ndim)(x, out0=y_diagonal_view)
 

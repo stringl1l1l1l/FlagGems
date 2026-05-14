@@ -13,6 +13,8 @@ from flag_gems.utils.code_utils import IndentedBuffer
 
 from ..utils import TOTAL_CORE_NUM
 
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
+
 
 # --------------------------- repeat wrapper genration -----------------------------------
 def parameter_for_wrapper() -> str:
@@ -63,10 +65,10 @@ def generate_imports(code: IndentedBuffer) -> IndentedBuffer:
     code.writeline("from flag_gems.runtime import torch_device_fn")
     code.writeline("from flag_gems.utils.shape_utils import volume")
     code.writeline("from flag_gems.utils import libentry")
-    code.writeline("from flag_gems.runtime.backend import vendor_module")
-    code.writeline("MAX_GRID_SIZE_X = vendor_module.MAX_GRID_SIZE_X")
+    code.writeline("from flag_gems.runtime.backend import _state")
+    code.writeline("MAX_GRID_SIZE_X = _state.vendor_module.MAX_GRID_SIZE_X")
     code.writeline("from flag_gems.utils.type_utils import type_promotion")
-    code.writeline("from flag_gems.utils import triton_lang_extension as tle")
+    code.writeline("from flag_gems.utils import triton_lang_extension as ext")
     code.newline()
     code.newline()
     return code
@@ -107,7 +109,7 @@ def generate_functional_repeat_wrapper(
                 "assert(sizes_shape[i] >= 0), 'the number of repetitions per dimension out of range (expected to >= 0) \
                 but got {}'.format(sizes_shape[i])"
             )
-            code.writeline("if sizes_shape[i] == 0: ")
+            code.writeline("if in0_shape[i] * sizes_shape[i] == 0: ")
             with code.indent():
                 code.writeline("is_empty = True")
             code.writeline("out_shape.append(in0_shape[i] * sizes_shape[i])")
@@ -413,7 +415,7 @@ class RepeatFunction:
                 ndim,
                 "_wrapper",
                 "_wrapper_out",
-                "_jit_function",
+                "_repeat_flaggems_jit_function",
                 code,
             )
 
@@ -447,7 +449,10 @@ _repeat_func = RepeatFunction()
 @libentry()
 @triton.autotune(
     configs=[
-        triton.Config({"BLOCK_C": 2**n}, num_stages=3) for n in range(10, 17, 2)
+        triton.Config({"BLOCK_C": 2**n}, num_stages=s, num_warps=w)
+        for n in range(6, 17, 2)
+        for s in [1, 3]
+        for w in [1, 4]
     ],
     key=["C"],
 )
@@ -497,7 +502,7 @@ def repeat_2d_kernel(
 
 
 def repeat(inp: torch.Tensor, sizes) -> torch.Tensor:
-    logging.debug("GEMS_CAMBRICON REPEAT")
+    logger.debug("GEMS_CAMBRICON REPEAT")
 
     inp_rank = inp.dim()
     sizes_rank = len(sizes)

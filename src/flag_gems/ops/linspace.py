@@ -4,8 +4,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ..utils import libentry
-from ..utils import triton_lang_extension as tle
+from flag_gems.utils import libentry
+from flag_gems.utils import triton_lang_extension as ext
+
+logger = logging.getLogger(__name__)
 
 
 @libentry()
@@ -20,7 +22,7 @@ def linspace_kernel(
     steps,
     BLOCK_SIZE: tl.constexpr,
 ):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
     idx = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = idx < steps
     fw_mask = idx < mid
@@ -34,7 +36,7 @@ def linspace_kernel(
 def linspace(
     start, end, steps, *, dtype=None, layout=None, device=None, pin_memory=None
 ) -> torch.Tensor:
-    logging.debug("GEMS LINSPACE")
+    logger.debug("GEMS LINSPACE")
     assert steps >= 1, "steps must be >= 1"
 
     out = torch.empty(

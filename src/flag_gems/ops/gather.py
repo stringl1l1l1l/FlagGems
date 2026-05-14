@@ -5,11 +5,12 @@ from typing import Any, Callable, Mapping, Tuple
 
 import torch
 
+from flag_gems.ops.scatter import scatter_
 from flag_gems.utils.code_cache import code_cache_dir
-from flag_gems.utils.code_utils import IndentedBuffer
+from flag_gems.utils.code_utils import IndentedBuffer, write_atomic
 from flag_gems.utils.shape_utils import restride_dim
 
-from .scatter import scatter_
+logger = logging.getLogger(__name__)
 
 
 def generate_imports(code: IndentedBuffer) -> IndentedBuffer:
@@ -19,7 +20,7 @@ def generate_imports(code: IndentedBuffer) -> IndentedBuffer:
     code.newline()
     code.writeline("from flag_gems.utils import libentry")
     code.writeline("from flag_gems import runtime")
-    code.writeline("from flag_gems.utils import triton_lang_extension as tle")
+    code.writeline("from flag_gems.utils import triton_lang_extension as ext")
 
     code.newline()
     code.newline()
@@ -55,7 +56,7 @@ def generate_gather_kernel(
     code.writeline("):")
 
     with code.indent():
-        code.writeline("pid = tle.program_id(0)")
+        code.writeline("pid = ext.program_id(0)")
         code.writeline(
             "offset = pid * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N).to(tl.int64)"
         )
@@ -157,15 +158,14 @@ class GatherFunction:
                 code,
             )
 
-            file_name = f"gather_rank_{key}_pid_{self.pid}.py"
-
-            with open(code_cache_dir() / file_name, "wt", encoding="utf-8") as f:
-                f.write(code.getvalue())
+            file_name = f"gather_rank_{key}.py"
+            file_path = code_cache_dir() / file_name
+            write_atomic(file_path, code.getvalue())
 
             # load
             spec = importlib.util.spec_from_file_location(
-                f"_gen_module_rank_{key}_pid_{self.pid}",
-                f.name,
+                f"_gen_module_rank_{key}",
+                file_path,
             )
 
             m = importlib.util.module_from_spec(spec)
@@ -183,7 +183,12 @@ _gather_func = GatherFunction()
 
 
 def gather(inp, dim, index, out=None, sparse_grad=False):
-    logging.debug("GEMS GATHER")
+    logger.debug("GEMS GATHER")
+    if inp.ndim != index.ndim:
+        raise IndexError(
+            f"self and index must have the same number of dimensions, "
+            f"got self.ndim = {inp.ndim} and index.ndim = {index.ndim}"
+        )
     if out is None:
         out = torch.empty_like(index, dtype=inp.dtype, device=inp.device)
     dim_stride = inp.stride(dim)
@@ -194,6 +199,6 @@ def gather(inp, dim, index, out=None, sparse_grad=False):
 
 
 def gather_backward(grad, self, dim, index, sparse_grad):
-    logging.debug("GEMS GATHER BACKWARD")
+    logger.debug("GEMS GATHER BACKWARD")
     result = grad.new_zeros(self.shape)
     return scatter_(result, dim, index, grad, reduce="add")

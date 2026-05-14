@@ -34,7 +34,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
-from attri_util import BenchmarkMetrics, BenchmarkResult
+from .consts import BenchmarkMetrics, BenchmarkResult
 
 # to enable log files crossing speedup calculation
 ENABLE_COMPARE = False
@@ -102,7 +102,7 @@ def parse_log(log_file_path: str) -> List[BenchmarkResult]:
         log_lines = [
             line
             for line in file.read().strip().split("\n")
-            if line.startswith("[INFO]")
+            if line.startswith("[INFO] {")
         ]
 
     benchmark_results = []

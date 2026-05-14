@@ -1,6 +1,5 @@
 import builtins
 import logging
-import math
 
 import torch
 import triton
@@ -9,8 +8,9 @@ import triton.language as tl
 # from flag_gems import runtime
 from flag_gems.runtime import torch_device_fn
 from flag_gems.utils import dim_compress, libentry, tl_extra_shim
-from flag_gems.utils import triton_lang_extension as tle
+from flag_gems.utils import triton_lang_extension as ext
 
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
 pow = tl_extra_shim.pow
 
 
@@ -32,7 +32,7 @@ def heur_block_n(args):
 )
 @triton.jit
 def l2_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    pid = ext.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     X = X + pid * N
     Out = Out + pid
     row_mask = pid < M
@@ -53,8 +53,10 @@ def l2_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
 
 @libentry()
 @triton.jit
-def l2_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64)
+def l2_norm_kernel_1(
+    X, Mid, M, BLOCK_SIZE: tl.constexpr, buffer_size_limit: tl.constexpr
+):
+    pid = ext.program_id(0).to(tl.int64)
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     X = X + offset
     Mid = Mid + pid
@@ -67,7 +69,9 @@ def l2_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
 
 @libentry()
 @triton.jit
-def l2_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
+def l2_norm_kernel_2(
+    Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     offset = tl.arange(0, BLOCK_MID)
     Mid = Mid + offset
     mask = offset < MID_SIZE
@@ -86,7 +90,7 @@ def l2_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
 )
 @triton.jit
 def max_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    pid = ext.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     X = X + pid * N
     Out = Out + pid
     row_mask = pid < M
@@ -107,8 +111,10 @@ def max_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
 
 @libentry()
 @triton.jit
-def max_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64)
+def max_norm_kernel_1(
+    X, Mid, M, BLOCK_SIZE: tl.constexpr, buffer_size_limit: tl.constexpr
+):
+    pid = ext.program_id(0).to(tl.int64)
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     X = X + offset
     Mid = Mid + pid
@@ -121,7 +127,9 @@ def max_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
 
 @libentry()
 @triton.jit
-def max_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
+def max_norm_kernel_2(
+    Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     offset = tl.arange(0, BLOCK_MID)
     Mid = Mid + offset
     mask = offset < MID_SIZE
@@ -140,7 +148,7 @@ def max_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
 )
 @triton.jit
 def min_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    pid = ext.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     X = X + pid * N
     Out = Out + pid
     row_mask = pid < M
@@ -161,8 +169,10 @@ def min_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
 
 @libentry()
 @triton.jit
-def min_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64)
+def min_norm_kernel_1(
+    X, Mid, M, BLOCK_SIZE: tl.constexpr, buffer_size_limit: tl.constexpr
+):
+    pid = ext.program_id(0).to(tl.int64)
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     X = X + offset
     Mid = Mid + pid
@@ -175,7 +185,9 @@ def min_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
 
 @libentry()
 @triton.jit
-def min_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
+def min_norm_kernel_2(
+    Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     offset = tl.arange(0, BLOCK_MID)
     Mid = Mid + offset
     mask = offset < MID_SIZE
@@ -194,7 +206,7 @@ def min_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
 )
 @triton.jit
 def l0_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
-    pid = tle.program_id(0) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    pid = ext.program_id(0) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     X = X + pid * N
     Out = Out + pid
     row_mask = pid < M
@@ -214,8 +226,10 @@ def l0_norm_kernel(X, Out, M, N, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
 
 @libentry()
 @triton.jit
-def l0_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0).to(tl.int64)
+def l0_norm_kernel_1(
+    X, Mid, M, BLOCK_SIZE: tl.constexpr, buffer_size_limit: tl.constexpr
+):
+    pid = ext.program_id(0).to(tl.int64)
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     X = X + offset
     Mid = Mid + pid
@@ -229,7 +243,9 @@ def l0_norm_kernel_1(X, Mid, M, BLOCK_SIZE: tl.constexpr):
 
 @libentry()
 @triton.jit
-def l0_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
+def l0_norm_kernel_2(
+    Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     offset = tl.arange(0, BLOCK_MID)
     Mid = Mid + offset
     mask = offset < MID_SIZE
@@ -249,7 +265,7 @@ def l0_norm_kernel_2(Mid, Out, MID_SIZE, BLOCK_MID: tl.constexpr):
 @triton.jit(do_not_specialize=["ord"])
 def v_norm_kernel(X, Out, M, N, ord, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr):
     ord = ord.to(tl.float32)
-    pid = tle.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    pid = ext.program_id(0).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
     X = X + pid * N
     Out = Out + pid
     row_mask = pid < M
@@ -269,9 +285,11 @@ def v_norm_kernel(X, Out, M, N, ord, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexp
 
 @libentry()
 @triton.jit(do_not_specialize=["ord"])
-def l1_norm_kernel_1(X, Mid, ord, M, BLOCK_SIZE: tl.constexpr):
+def l1_norm_kernel_1(
+    X, Mid, ord, M, BLOCK_SIZE: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     ord = ord.to(tl.float32)
-    pid = tle.program_id(0).to(tl.int64)
+    pid = ext.program_id(0).to(tl.int64)
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     X = X + offset
     Mid = Mid + pid
@@ -284,7 +302,9 @@ def l1_norm_kernel_1(X, Mid, ord, M, BLOCK_SIZE: tl.constexpr):
 
 @libentry()
 @triton.jit(do_not_specialize=["ord"])
-def l1_norm_kernel_2(Mid, Out, ord, MID_SIZE, BLOCK_MID: tl.constexpr):
+def l1_norm_kernel_2(
+    Mid, Out, ord, MID_SIZE, BLOCK_MID: tl.constexpr, buffer_size_limit: tl.constexpr
+):
     ord = ord.to(tl.float32)
     offset = tl.arange(0, BLOCK_MID)
     Mid = Mid + offset
@@ -295,7 +315,7 @@ def l1_norm_kernel_2(Mid, Out, ord, MID_SIZE, BLOCK_MID: tl.constexpr):
 
 
 def vector_norm(x, ord=2, dim=None, keepdim=False, dtype=None):
-    logging.debug("GEMS VECTOR NORM")
+    logger.debug("GEMS VECTOR NORM")
     if dtype is not None:
         dtype = torch.dtype(dtype)
     else:
@@ -309,27 +329,51 @@ def vector_norm(x, ord=2, dim=None, keepdim=False, dtype=None):
             shape = [1] * x.ndim
             x = dim_compress(x, dim)
             M = x.numel()
-            BLOCK_SIZE = triton.next_power_of_2(math.ceil(math.sqrt(M)))
+            cluster_num = 12
+            BLOCK_SIZE = min(
+                triton.next_power_of_2(triton.cdiv(M, cluster_num)),
+                int(1024 * 64 / x.element_size()),
+            )
             MID_SIZE = triton.cdiv(M, BLOCK_SIZE)
             BLOCK_MID = triton.next_power_of_2(MID_SIZE)
 
             mid = torch.empty([MID_SIZE], dtype=dtype, device=x.device)
             out = torch.empty(shape, dtype=dtype, device=x.device)
             if ord == 2:
-                l2_norm_kernel_1[(MID_SIZE,)](x, mid, M, BLOCK_SIZE)
-                l2_norm_kernel_2[(1,)](mid, out, MID_SIZE, BLOCK_MID)
+                l2_norm_kernel_1[(MID_SIZE,)](
+                    x, mid, M, BLOCK_SIZE, buffer_size_limit=2048
+                )
+                l2_norm_kernel_2[(1,)](
+                    mid, out, MID_SIZE, BLOCK_MID, buffer_size_limit=2048
+                )
             elif ord == float("inf"):
-                max_norm_kernel_1[(MID_SIZE,)](x, mid, M, BLOCK_SIZE)
-                max_norm_kernel_2[(1,)](mid, out, MID_SIZE, BLOCK_MID)
+                max_norm_kernel_1[(MID_SIZE,)](
+                    x, mid, M, BLOCK_SIZE, buffer_size_limit=2048
+                )
+                max_norm_kernel_2[(1,)](
+                    mid, out, MID_SIZE, BLOCK_MID, buffer_size_limit=2048
+                )
             elif ord == -float("inf"):
-                min_norm_kernel_1[(MID_SIZE,)](x, mid, M, BLOCK_SIZE)
-                min_norm_kernel_2[(1,)](mid, out, MID_SIZE, BLOCK_MID)
+                min_norm_kernel_1[(MID_SIZE,)](
+                    x, mid, M, BLOCK_SIZE, buffer_size_limit=2048
+                )
+                min_norm_kernel_2[(1,)](
+                    mid, out, MID_SIZE, BLOCK_MID, buffer_size_limit=2048
+                )
             elif ord == 0:
-                l0_norm_kernel_1[(MID_SIZE,)](x, mid, M, BLOCK_SIZE)
-                l0_norm_kernel_2[(1,)](mid, out, MID_SIZE, BLOCK_MID)
+                l0_norm_kernel_1[(MID_SIZE,)](
+                    x, mid, M, BLOCK_SIZE, buffer_size_limit=2048
+                )
+                l0_norm_kernel_2[(1,)](
+                    mid, out, MID_SIZE, BLOCK_MID, buffer_size_limit=2048
+                )
             else:
-                l1_norm_kernel_1[(MID_SIZE,)](x, mid, ord, M, BLOCK_SIZE)
-                l1_norm_kernel_2[(1,)](mid, out, ord, MID_SIZE, BLOCK_MID)
+                l1_norm_kernel_1[(MID_SIZE,)](
+                    x, mid, ord, M, BLOCK_SIZE, buffer_size_limit=2048
+                )
+                l1_norm_kernel_2[(1,)](
+                    mid, out, ord, MID_SIZE, BLOCK_MID, buffer_size_limit=2048
+                )
         else:
             shape = list(x.shape)
             dim = [d % x.ndim for d in dim]

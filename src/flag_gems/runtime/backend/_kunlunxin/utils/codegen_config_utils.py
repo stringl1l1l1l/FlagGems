@@ -4,8 +4,8 @@ from typing import Tuple
 import triton
 
 from flag_gems.runtime import device
-from flag_gems.runtime.backend import vendor_module
-from flag_gems.runtime.commom_utils import vendors
+from flag_gems.runtime.backend import _state
+from flag_gems.runtime.common import vendors
 
 
 def default_heuristics_for_num_warps(tile_size):
@@ -42,6 +42,13 @@ class CodeGenConfig:
     # prune_config: (as jit function, ) cofigs -> configs
     is_scatter_slice: bool = False
     is_cat: bool = False
+    isCloseVectorization: bool = False
+    isCloseDtypeConvert: bool = False
+    isCloseMemoryAsync: bool = True
+    isCloseInterleave: bool = False
+    kunlunAutoGrid: bool = False
+    buffer_size_limit: int = 0
+    unroll_num: int = 0
 
     def __post_init__(self):
         if self.prefer_1d_tile:
@@ -58,12 +65,12 @@ CODEGEN_COFIGS = {
     ),
     vendors.CAMBRICON: CodeGenConfig(
         8192,
-        tuple([vendor_module.TOTAL_CORE_NUM, 1, 1]),
+        tuple([_state.vendor_module.TOTAL_CORE_NUM, 1, 1]),
         32,
         False,
         prefer_1d_tile=int(triton.__version__[0]) < 3,
     )
-    if vendor_module.vendor_info.vendor_name == "cambricon"
+    if _state.vendor_module.vendor_info.vendor_name == "cambricon"
     else None,
     vendors.METAX: CodeGenConfig(
         2048,

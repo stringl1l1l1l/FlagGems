@@ -8,6 +8,8 @@ import torch
 from flag_gems.utils.code_cache import cache_dir
 from flag_gems.utils.code_utils import IndentedBuffer
 
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
+
 
 # --------------------------- tile wrapper genration -----------------------------------
 def parameter_for_wrapper() -> str:
@@ -59,7 +61,7 @@ def generate_imports(code: IndentedBuffer) -> IndentedBuffer:
     code.writeline("from flag_gems.utils.shape_utils import volume")
     code.writeline("from flag_gems.utils.libentry import libentry")
     code.writeline("from flag_gems.utils.type_utils import type_promotion")
-    code.writeline("from flag_gems.utils import triton_lang_extension as tle")
+    code.writeline("from flag_gems.utils import triton_lang_extension as ext")
     code.newline()
     code.newline()
     return code
@@ -266,10 +268,10 @@ def generate_tile_kernel(
     with code.indent():
         # get pid
         code.writeline("# task id & masking")
-        pid_stmt = "pid = tle.program_id(0)"
+        pid_stmt = "pid = ext.program_id(0)"
         code.writeline(pid_stmt)
 
-        code.writeline("num_ctas = tle.num_programs(0)")
+        code.writeline("num_ctas = ext.num_programs(0)")
 
         # get tid (a.k.a task id)
         tid_stmt = "init_tid = pid * tile_size + tl.arange(0, tile_size)"
@@ -440,7 +442,7 @@ _tile_func = TileFunction()
 
 
 def tile(inp: torch.Tensor, dims) -> torch.Tensor:
-    logging.debug("GEMS TILE")
+    logger.debug("GEMS TILE")
 
     out = _tile_func(inp, dims)
     return out

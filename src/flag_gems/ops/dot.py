@@ -5,15 +5,17 @@ import torch
 import triton
 import triton.language as tl
 
-from ..runtime import torch_device_fn
-from ..utils import libentry
-from ..utils import triton_lang_extension as tle
+from flag_gems.runtime import torch_device_fn
+from flag_gems.utils import libentry
+from flag_gems.utils import triton_lang_extension as ext
+
+logger = logging.getLogger(__name__)
 
 
 @libentry()
 @triton.jit
 def dot_kernel(x_ptr, y_ptr, out_ptr, N, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
     block_start = pid * BLOCK_SIZE
 
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
@@ -29,7 +31,7 @@ def dot_kernel(x_ptr, y_ptr, out_ptr, N, BLOCK_SIZE: tl.constexpr):
 @libentry()
 @triton.jit
 def dot_kernel_1(x_ptr, y_ptr, mid_ptr, N, BLOCK_SIZE: tl.constexpr):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
     block_start = pid * BLOCK_SIZE
 
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
@@ -54,7 +56,7 @@ def dot_kernel_2(mid_ptr, out_ptr, M, BLOCK_MID: tl.constexpr):
 
 
 def dot(x, y):
-    logging.debug("Triton Dot Product")
+    logger.debug("Triton Dot Product")
 
     assert x.shape == y.shape, "Input vectors must have the same shape"
     assert x.dim() == 1, "Input must be 1D tensors"

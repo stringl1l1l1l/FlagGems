@@ -7,7 +7,9 @@ import triton.language as tl
 # from flag_gems import runtime
 from flag_gems.runtime import torch_device_fn
 from flag_gems.utils import libentry
-from flag_gems.utils import triton_lang_extension as tle
+from flag_gems.utils import triton_lang_extension as ext
+
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
 
 
 def nonzero_kernel_heur_block_size(args):
@@ -36,28 +38,26 @@ def nonzero_kernel(
     ndim: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
 
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offset < n_elements
 
-    inp_vals = tl.load(inp + offset, mask=mask)
+    inp_vals = tl.load(inp + offset, mask=mask).to(tl.int1)
     out_offset = tl.load(prefix_sum + offset, mask=mask) - 1
 
-    nonzero_mask = mask and inp_vals == True  # noqa
+    nonzero_mask = mask and inp_vals  # noqa
 
     idx_flat = offset
     for dim in range(ndim - 1, -1, -1):
         dim_size = tl.load(shape + dim)
         remainder = idx_flat % dim_size
         idx_flat //= dim_size
-        final_out_offset = out_offset * ndim + dim
-        final_out_offset = tl.where(nonzero_mask, final_out_offset, -1)
-        tl.store(out + final_out_offset, remainder, mask=nonzero_mask)
+        tl.store(out + out_offset * ndim + dim, remainder, mask=nonzero_mask)
 
 
 def nonzero(inp, *, as_tuple=False):
-    logging.debug("GEMS NONZERO")
+    logger.debug("GEMS NONZERO")
 
     inp_ndim = inp.ndim
 
@@ -69,7 +69,7 @@ def nonzero(inp, *, as_tuple=False):
 
     inp_bool = inp_view
     if inp_view.dtype != torch.bool:
-        inp_bool = inp_view.bool()
+        inp_bool = inp_view != 0
 
     prefix_sum = inp_bool.cumsum(axis=0)
 
@@ -77,12 +77,6 @@ def nonzero(inp, *, as_tuple=False):
     out = torch.empty(num_nonzeros, inp_ndim, dtype=torch.int64, device=inp.device)
 
     grid = lambda meta: (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
-
-    import os
-
-    os.environ["TRITONXPU_OTHER_SIM"] = "1"
-    os.environ["TRITONXPU_STORE_MASK_SIM"] = "1"
-
     with torch_device_fn.device(inp.device):
         nonzero_kernel[grid](
             inp_bool,
@@ -92,12 +86,8 @@ def nonzero(inp, *, as_tuple=False):
             shape,
             inp_ndim,
             isCloseUnrollControl=True,
+            is_use_mask_zero=True,
         )
-
-    if "TRITONXPU_OTHER_SIM" in os.environ:
-        del os.environ["TRITONXPU_OTHER_SIM"]
-    if "TRITONXPU_STORE_MASK_SIM" in os.environ:
-        del os.environ["TRITONXPU_STORE_MASK_SIM"]
 
     num_nonzeros = prefix_sum[n_elements - 1].item()
     out = out[0:num_nonzeros]

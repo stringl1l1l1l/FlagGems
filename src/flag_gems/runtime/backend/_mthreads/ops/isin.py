@@ -4,13 +4,12 @@ import torch
 import triton
 import triton.language as tl
 
+from flag_gems.ops.all import reduce_all
+from flag_gems.ops.any import reduce_any
+from flag_gems.ops.unique import _unique2
+from flag_gems.runtime import torch_device_fn
+from flag_gems.utils import triton_lang_extension as ext
 from flag_gems.utils.libentry import libentry
-
-from ..runtime import torch_device_fn
-from ..utils import triton_lang_extension as tle
-from .all import reduce_all
-from .any import reduce_any
-from .unique import _unique2
 
 
 def launch_arg(BLOCK_M, BLOCK_N, N, num_warps):
@@ -65,8 +64,8 @@ def isin_by_comparation_kernel(
     tiles_per_cta: int,
     invert: tl.constexpr,
 ):
-    pid = tle.program_id(0)
-    ctas_num = tle.num_programs(0)
+    pid = ext.program_id(0)
+    ctas_num = ext.num_programs(0)
     # grid-stride-loop style kernel
     for j in range(0, tiles_per_cta):
         global_pid = pid + j * ctas_num
@@ -171,8 +170,8 @@ def isin_by_search_kernel(
     tiles_per_cta: int,
     invert: tl.constexpr,
 ):
-    pid = tle.program_id(0)
-    ctas_num = tle.num_programs(0)
+    pid = ext.program_id(0)
+    ctas_num = ext.num_programs(0)
     # grid-stride-loop style kernel
     for j in range(0, tiles_per_cta):
         global_pid = pid + j * ctas_num

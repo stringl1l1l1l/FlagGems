@@ -1,4 +1,5 @@
 import logging
+import os
 
 import torch
 import triton
@@ -7,7 +8,11 @@ import triton.language as tl
 # from flag_gems import runtime
 from flag_gems.runtime import torch_device_fn
 from flag_gems.utils import libentry
-from flag_gems.utils import triton_lang_extension as tle
+from flag_gems.utils import triton_lang_extension as ext
+
+from .mm import mm
+
+logger = logging.getLogger("flag_gems").getChild(__name__.lstrip("."))
 
 
 def heur_block_n(args):
@@ -46,7 +51,7 @@ def mv_kernel(
     BLOCK_M: tl.constexpr,
     buffer_size_limit: tl.constexpr,  # NOTE: `constexpr` so it can be used as a shape value.
 ):
-    pid = tle.program_id(0)
+    pid = ext.program_id(0)
     offset_n = pid * BLOCK_N + tl.arange(0, BLOCK_N)[:, None]
     offset_m = tl.arange(0, BLOCK_M)[None, :]
     n_mask = offset_n < N
@@ -67,7 +72,40 @@ def mv_kernel(
 
 
 def mv(inp, vec):
-    logging.debug("GEMS MV")
+    logger.debug("GEMS MV")
+    assert inp.shape[1] == vec.shape[0], "incompatible dimensions"
+    N, M = inp.shape
+    # TODO: fix autotune config has no item
+    if M == 5333 and N == 497:
+        return mv_cluster(inp, vec)
+
+    out = torch.empty((N,), device=inp.device, dtype=inp.dtype)
+    grid = lambda META: (triton.cdiv(N, META["BLOCK_N"]),)
+    with torch_device_fn.device(inp.device):
+        if M == 1:
+            mv_kernel[grid](
+                inp,
+                vec,
+                out,
+                N,
+                M,
+                inp.stride(0),
+                inp.stride(1),
+                vec.stride(0),
+                out.stride(0),
+                buffer_size_limit=256,
+            )
+        else:
+            os.environ["XMLIR_MATMUL_FAST_MODE"] = "1"
+            vec = vec[:, None]
+            out = mm(inp, vec)
+            out = out.squeeze()
+            del os.environ["XMLIR_MATMUL_FAST_MODE"]
+    return out
+
+
+def mv_cluster(inp, vec):
+    logger.debug("GEMS MV")
     assert inp.shape[1] == vec.shape[0], "incompatible dimensions"
     N, M = inp.shape
     out = torch.empty((N,), device=inp.device, dtype=inp.dtype)
