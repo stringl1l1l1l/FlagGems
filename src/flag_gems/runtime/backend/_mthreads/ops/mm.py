@@ -321,18 +321,29 @@ def mm_out(a, b, *, out):
     return c
 
 
-def sqmma_get_configs():
+def matmul_sqmma_set_block_size_hook(nargs):
+    BLOCK_M = nargs["BLOCK_M"]
+    BLOCK_N = nargs["BLOCK_N"]
+    BLOCK_K = nargs["BLOCK_K"]
+    nargs["a_desc"].block_shape = [BLOCK_M, BLOCK_K]
+    nargs["b_desc"].block_shape = [BLOCK_K, BLOCK_N]
+    nargs["c_desc"].block_shape = [BLOCK_M, BLOCK_N]
+
+
+def sqmma_get_configs(pre_hook=matmul_sqmma_set_block_size_hook):
     return [
         triton.Config(
             {"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 128},
             num_stages=1,
             num_warps=4,
+            pre_hook=pre_hook,
         ),
         triton.Config(
             {"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 64},
             num_stages=1,
             num_warps=4,
-        )
+            pre_hook=pre_hook,
+        ),
     ]
 
 
@@ -398,32 +409,28 @@ def mm_sqmma(A, B, M, N, K, GROUP_M):
     assert a_type == b_type, "Mat A and Mat B should have the same dtype"
     c_dtype = get_higher_dtype(a_type, b_type)
     C = torch.empty((M, N), dtype=c_dtype, device=device)
-    BLOCK_M = 128
-    BLOCK_N = 128
-    BLOCK_K = 64
-    desc_a = TensorDescriptor.from_tensor(A, [BLOCK_M, BLOCK_K])
-    desc_b = TensorDescriptor.from_tensor(B, [BLOCK_K, BLOCK_N])
-    desc_c = TensorDescriptor.from_tensor(C, [BLOCK_M, BLOCK_N])
+    # Real block_shape values are filled in by matmul_sqmma_set_block_size_hook
+    # at autotune/launch time based on the BLOCK_M/N/K selected by libtuner.
+    dummy_block = [1, 1]
+    desc_a = TensorDescriptor(A, A.shape, A.stride(), dummy_block)
+    desc_b = TensorDescriptor(B, B.shape, B.stride(), dummy_block)
+    desc_c = TensorDescriptor(C, C.shape, C.stride(), dummy_block)
     grid = lambda META: (
-        triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N),
+        triton.cdiv(M, META["BLOCK_M"]) * triton.cdiv(N, META["BLOCK_N"]),
         1,
         1,
     )
-    mm_sqmma_kernel[grid](
-        desc_a,
-        desc_b,
-        desc_c,
-        M,
-        N,
-        K,
-        str(a_type).split(".")[-1],
-        GROUP_M,
-        BLOCK_M,
-        BLOCK_N,
-        BLOCK_K,
-        num_warps=4,
-        num_stages=1,
-    )
+    with torch_device_fn.device(A.device):
+        mm_sqmma_kernel[grid](
+            desc_a,
+            desc_b,
+            desc_c,
+            M,
+            N,
+            K,
+            dtype=str(a_type).split(".")[-1],
+            GROUP_M=GROUP_M,
+        )
     return C
 
 
