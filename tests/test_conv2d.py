@@ -13,6 +13,11 @@ if QUICK_MODE:
         ((1, 2, 5, 5), (1, 2, 3, 3), 1),
     ]
     FLOAT_DTYPES = [torch.float32]
+    STRIDES = [1]
+    PADDINGS = [1]
+    DILATIONS = [1]
+    BIASES = [True]
+    STR_PADDINGS = ["same"]
 else:
     SHAPE_CONV2D = [
         ((1, 2, 5, 5), (1, 2, 3, 3), 1),
@@ -32,15 +37,20 @@ else:
         # ((9, 16, 6, 6), (128, 8, 3, 3), 2),
     ]
     FLOAT_DTYPES = utils.FLOAT_DTYPES
+    STRIDES = [1, 2]
+    PADDINGS = [0, 1]
+    DILATIONS = [1, 2]
+    BIASES = [True, False]
+    STR_PADDINGS = ["valid", "same"]
 
 
 @pytest.mark.conv2d
 @pytest.mark.parametrize("shape, kernel,groups", SHAPE_CONV2D)
-@pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("padding", [0, 1])
+@pytest.mark.parametrize("stride", STRIDES)
+@pytest.mark.parametrize("padding", PADDINGS)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
-@pytest.mark.parametrize("dilation", [1, 2])
-@pytest.mark.parametrize("bias", [True, False])
+@pytest.mark.parametrize("dilation", DILATIONS)
+@pytest.mark.parametrize("bias", BIASES)
 def test_conv2d(
     monkeypatch, shape, kernel, stride, padding, groups, dtype, dilation, bias
 ):
@@ -120,10 +130,10 @@ def test_conv2d(
 )
 @pytest.mark.parametrize("shape, kernel,groups", SHAPE_CONV2D)
 @pytest.mark.parametrize("stride", [1])
-@pytest.mark.parametrize("padding", ["valid", "same"])
+@pytest.mark.parametrize("padding", STR_PADDINGS)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
-@pytest.mark.parametrize("dilation", [1, 2])
-@pytest.mark.parametrize("bias", [True, False])
+@pytest.mark.parametrize("dilation", DILATIONS)
+@pytest.mark.parametrize("bias", BIASES)
 def test_conv2d_padding(
     monkeypatch, shape, kernel, stride, padding, groups, dtype, dilation, bias
 ):
