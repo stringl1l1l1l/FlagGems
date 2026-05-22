@@ -21,6 +21,7 @@ else:
     ]
     FLOAT_DTYPES = utils.FLOAT_DTYPES
 
+
 @pytest.mark.cudnn_convolution
 @pytest.mark.parametrize("shape, kernel, groups", SHAPE_CUDNN_CONV2D)
 @pytest.mark.parametrize("stride", [1, 2])
