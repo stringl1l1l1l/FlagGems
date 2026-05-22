@@ -14,6 +14,8 @@ if QUICK_MODE:
         ((2, 4, 8), (4, 8, 3)),
     ]
     FLOAT_DTYPES = [torch.float32]
+    STRIDES = [1]
+    PADDINGS = [1]
 else:
     SHAPE_CONV_TRANSPOSE1D = [
         ((2, 4, 8), (4, 8, 3)),
@@ -21,12 +23,14 @@ else:
         ((2, 16, 32), (16, 32, 5)),
     ]
     FLOAT_DTYPES = utils.FLOAT_DTYPES
+    STRIDES = [1, 2]
+    PADDINGS = [0, 1]
 
 
 @pytest.mark.conv_transpose1d
 @pytest.mark.parametrize("shape, kernel", SHAPE_CONV_TRANSPOSE1D)
-@pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("padding", [0, 1])
+@pytest.mark.parametrize("stride", STRIDES)
+@pytest.mark.parametrize("padding", PADDINGS)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
 def test_conv_transpose1d(shape, kernel, stride, padding, dtype, monkeypatch):
     inp = torch.randn(shape, dtype=dtype, device=flag_gems.device, requires_grad=False)
@@ -53,8 +57,8 @@ def test_conv_transpose1d(shape, kernel, stride, padding, dtype, monkeypatch):
 
 @pytest.mark.conv_transpose1d
 @pytest.mark.parametrize("shape, kernel", SHAPE_CONV_TRANSPOSE1D)
-@pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("padding", [0, 1])
+@pytest.mark.parametrize("stride", STRIDES)
+@pytest.mark.parametrize("padding", PADDINGS)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
 def test_conv_transpose1d_bias(shape, kernel, stride, padding, dtype, monkeypatch):
     inp = torch.randn(shape, dtype=dtype, device=flag_gems.device, requires_grad=False)
@@ -91,8 +95,8 @@ def test_conv_transpose1d_bias(shape, kernel, stride, padding, dtype, monkeypatc
         ((4, 12, 32), (12, 4, 3), 3),
     ],
 )
-@pytest.mark.parametrize("stride", [1, 2])
-@pytest.mark.parametrize("padding", [0, 1])
+@pytest.mark.parametrize("stride", STRIDES)
+@pytest.mark.parametrize("padding", PADDINGS)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
 def test_conv_transpose1d_groups(
     shape, kernel, groups, stride, padding, dtype, monkeypatch
