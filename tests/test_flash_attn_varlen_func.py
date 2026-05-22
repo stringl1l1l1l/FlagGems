@@ -21,7 +21,7 @@ if QUICK_MODE:
     SOFT_CAPS = [None]
     NUM_BLOCKS = [2048]
     OPTIMIZE_INIT = [False]
-    
+
     # test_flash_attn_varlen_func_swap_qg - Special parameters
     SWAP_SOFT_CAPS = [None]
 else:
@@ -33,7 +33,7 @@ else:
     SOFT_CAPS = [None, 10.0, 50.0]
     NUM_BLOCKS = [32768, 2048]
     OPTIMIZE_INIT = [False, True]
-    
+
     # test_flash_attn_varlen_func_swap_qg - Special parameters
     SWAP_SOFT_CAPS = [None, 10.0]
 

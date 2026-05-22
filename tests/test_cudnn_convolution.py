@@ -61,6 +61,7 @@ def test_cudnn_convolution_2d(
 
     gems_assert_close(res_out.cpu(), ref_out.cpu(), dtype)
 
+
 if QUICK_MODE:
     SHAPE_CUDNN_CONV1D = [
         ((32, 2, 4), (17, 2, 2)),

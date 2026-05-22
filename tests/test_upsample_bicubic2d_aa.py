@@ -56,9 +56,7 @@ else:
 @pytest.mark.upsample_bicubic2d_aa
 @pytest.mark.parametrize("align_corners", ALIGN_CORNERS_FWD)
 @pytest.mark.parametrize("scale", SCALES)
-@pytest.mark.parametrize(
-    "shape", SHAPES_FWD
-)
+@pytest.mark.parametrize("shape", SHAPES_FWD)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
 def test_upsample_bicubic2d_aa(dtype, shape, scale, align_corners):
     input = torch.rand(shape, dtype=dtype, device=flag_gems.device)
@@ -122,10 +120,7 @@ def upsample_bicubic2d_aa_backward_call(grad, input_size, align_corners):
 
 
 @pytest.mark.upsample_bicubic2d_aa_backward
-@pytest.mark.parametrize(
-    "N,C,H_in,W_in,H_out,W_out,align_corners",
-    PARAMS_BWD
-)
+@pytest.mark.parametrize("N,C,H_in,W_in,H_out,W_out,align_corners", PARAMS_BWD)
 @pytest.mark.parametrize("dtype", FLOAT_DTYPES)
 def test_upsample_bicubic2d_aa_backward(
     N, C, H_in, W_in, H_out, W_out, align_corners, dtype

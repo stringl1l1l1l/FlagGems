@@ -7,7 +7,6 @@ import torch
 
 import flag_gems
 
-
 from .conftest import QUICK_MODE
 
 random.seed(42)
@@ -123,9 +122,7 @@ class FlashmlaSparseTestKit:
     @staticmethod
     def get_correctness_test_params():
         if QUICK_MODE:
-            cases = [
-                Flashmla_Sparse_Test_Param(64, 1024, 128, 128, 1, 576, 512)
-            ]
+            cases = [Flashmla_Sparse_Test_Param(64, 1024, 128, 128, 1, 576, 512)]
         else:
             cases = [
                 Flashmla_Sparse_Test_Param(s_q, s_kv, topk, h_q, h_kv, d_qk, d_v)

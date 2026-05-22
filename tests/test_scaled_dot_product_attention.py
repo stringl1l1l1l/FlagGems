@@ -53,7 +53,7 @@ else:
     FLOAT_DTYPES = [torch.float16, torch.bfloat16]
     HEAD_SIZES = [64, 128, 192, 256]
     NONSQUARE_SHAPES = [(1, 1, 128, 2048), (4, 8, 1024, 128), (4, 8, 17, 1030)]
-    
+
 SQUARE_SHAPES = [(4, 8, 1024, 1024)]
 
 
