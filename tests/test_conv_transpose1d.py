@@ -3,7 +3,6 @@ import torch
 
 import flag_gems
 
-from . import accuracy_utils as utils
 from .accuracy_utils import gems_assert_close, to_reference
 from .conftest import QUICK_MODE
 
@@ -23,7 +22,7 @@ else:
         ((4, 8, 16), (8, 16, 3)),
         ((2, 16, 32), (16, 32, 5)),
     ]
-    FLOAT_DTYPES = utils.FLOAT_DTYPES
+    FLOAT_DTYPES = [torch.float32, torch.float16]
     STRIDES = [1, 2]
     PADDINGS = [0, 1]
 

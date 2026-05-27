@@ -33,7 +33,7 @@ else:
         ((32, 15, 32), (17, 15, 3)),
         ((64, 64, 64), (128, 64, 3)),
     ]
-    FLOAT_DTYPES = utils.FLOAT_DTYPES
+    FLOAT_DTYPES = [torch.float32, torch.float16]
     STR_PADDINGS = ["valid", "same"]
     INT_PADDINGS = [0, 2]
     DILATIONS = [1, 2, (1,), (2,)]

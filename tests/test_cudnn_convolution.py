@@ -3,7 +3,6 @@ import torch
 
 import flag_gems
 
-from . import accuracy_utils as utils
 from .accuracy_utils import gems_assert_close
 from .conftest import QUICK_MODE
 
@@ -19,7 +18,7 @@ else:
         ((2, 3, 9, 9), (1, 3, 3, 3), 1),
         ((32, 8, 8, 8), (32, 8, 2, 2), 1),
     ]
-    FLOAT_DTYPES = utils.FLOAT_DTYPES
+    FLOAT_DTYPES = [torch.float16, torch.float32]
 
 
 @pytest.mark.cudnn_convolution

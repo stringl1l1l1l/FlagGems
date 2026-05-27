@@ -36,7 +36,7 @@ else:
         # ((18, 16, 11, 11), (16, 8, 3, 3), 2),
         # ((9, 16, 6, 6), (128, 8, 3, 3), 2),
     ]
-    FLOAT_DTYPES = utils.FLOAT_DTYPES
+    FLOAT_DTYPES = [torch.float16, torch.float32]
     STRIDES = [1, 2]
     PADDINGS = [0, 1]
     DILATIONS = [1, 2]
