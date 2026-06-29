@@ -376,6 +376,13 @@ def any_dims(
                 out = out.squeeze(dim=d)
         return out
 
+    if layout.num_outputs == 1:
+        out = any(inp).reshape(layout.out_shape)
+        if not keepdim:
+            for d in reversed(reduce_dims):
+                out = out.squeeze(dim=d)
+        return out
+
     block_height, block_width, num_warps = _select_reduction_config(
         layout.num_outputs,
         layout.inputs_per_output,
